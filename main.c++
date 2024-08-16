@@ -1,93 +1,86 @@
-#include <Servo.h>
 #include <NewPing.h>
 
-const int LeftMotorForward = 5;
-const int LeftMotorBackward = 4;
-const int RightMotorForward = 3;
-const int RightMotorBackward = 2;
+// Motor Driver Pins
+const int LeftMotorForward = 8;
+const int LeftMotorBackward = 9;
+const int RightMotorForward = 10;
+const int RightMotorBackward = 11;
 
-#define trig_pin A1
-#define echo_pin A2
+// Ultrasonic Sensor Pins
+#define trigPinFront A0
+#define echoPinFront A1
+#define trigPinLeft A2
+#define echoPinLeft A3
+#define trigPinRight A4
+#define echoPinRight A5
 
 #define maximum_distance 200
 boolean goesForward = false;
-int distance = 100;
+int distanceFront = 100;
+int distanceLeft = 100;
+int distanceRight = 100;
 
-NewPing sonar(trig_pin, echo_pin, maximum_distance);
-Servo servo_motor;
+NewPing sonarFront(trigPinFront, echoPinFront, maximum_distance);
+NewPing sonarLeft(trigPinLeft, echoPinLeft, maximum_distance);
+NewPing sonarRight(trigPinRight, echoPinRight, maximum_distance);
 
 void setup() {
+    // Initialize motor driver pins
     pinMode(RightMotorForward, OUTPUT);
     pinMode(LeftMotorForward, OUTPUT);
     pinMode(LeftMotorBackward, OUTPUT);
     pinMode(RightMotorBackward, OUTPUT);
-    
-    servo_motor.attach(11);
-    servo_motor.write(90);
-    delay(2000);
-    distance = readPing();
-    delay(100);
-    distance = readPing();
-    delay(100);
-    distance = readPing();
-    delay(100);
+
+    // Initialize sensor readings
+    delay(2000); // Wait for sensors to stabilize
+    distanceFront = readPingFront();
+    distanceLeft = readPingLeft();
+    distanceRight = readPingRight();
 }
 
 void loop() {
-    int distanceRight = 0;
-    int distanceLeft = 0;
-    delay(50);
+    delay(50); // Small delay for stability
 
-    if (distance <= 20) {
+    // Update distances
+    distanceFront = readPingFront();
+    distanceLeft = readPingLeft();
+    distanceRight = readPingRight();
+
+    if (distanceFront <= 20) {
         moveStop();
         delay(300);
         moveBackward();
         delay(400);
         moveStop();
         delay(300);
-        distanceRight = lookRight();
-        delay(300);
-        distanceLeft = lookLeft();
-        delay(300);
 
-        if (distance >= distanceLeft) {
-            turnRight();
-            moveStop();
-        } else {
+        if (distanceLeft > distanceRight) {
             turnLeft();
-            moveStop();
+        } else {
+            turnRight();
         }
+    } else if (distanceLeft <= 15) {
+        turnRight();
+    } else if (distanceRight <= 15) {
+        turnLeft();
     } else {
         moveForward(); 
     }
-    distance = readPing();
 }
 
-int lookRight() {  
-    servo_motor.write(10);
-    delay(500);
-    int distance = readPing();
-    delay(100);
-    servo_motor.write(90);
-    return distance;
+int readPingFront() {
+    int cm = sonarFront.ping_cm();
+    return (cm == 0) ? maximum_distance : cm;
 }
 
-int lookLeft() {
-    servo_motor.write(170);
-    delay(500);
-    int distance = readPing();
-    delay(100);
-    servo_motor.write(90);
-    return distance;
+int readPingLeft() {
+    int cm = sonarLeft.ping_cm();
+    return (cm == 0) ? maximum_distance : cm;
 }
 
-int readPing() {
-    delay(70);
-    int cm = sonar.ping_cm();
-    if (cm == 0) {
-        cm = 250;
-    }
-    return cm;
+int readPingRight() {
+    int cm = sonarRight.ping_cm();
+    return (cm == 0) ? maximum_distance : cm;
 }
 
 void moveStop() {
@@ -120,11 +113,8 @@ void turnRight() {
     digitalWrite(RightMotorBackward, HIGH);
     digitalWrite(LeftMotorBackward, LOW);
     digitalWrite(RightMotorForward, LOW);
-    delay(500);
-    digitalWrite(LeftMotorForward, HIGH);
-    digitalWrite(RightMotorForward, HIGH);
-    digitalWrite(LeftMotorBackward, LOW);
-    digitalWrite(RightMotorBackward, LOW);
+    delay(300);
+    moveForward();
 }
 
 void turnLeft() {
@@ -132,9 +122,6 @@ void turnLeft() {
     digitalWrite(RightMotorForward, HIGH);
     digitalWrite(LeftMotorForward, LOW);
     digitalWrite(RightMotorBackward, LOW);
-    delay(500);
-    digitalWrite(LeftMotorForward, HIGH);
-    digitalWrite(RightMotorForward, HIGH);
-    digitalWrite(LeftMotorBackward, LOW);
-    digitalWrite(RightMotorBackward, LOW);
+    delay(300);
+    moveForward();
 }

@@ -1,127 +1,88 @@
-#include <NewPing.h>
+#include <Servo.h>
 
-// Motor Driver Pins
-const int LeftMotorForward = 8;
-const int LeftMotorBackward = 9;
-const int RightMotorForward = 10;
-const int RightMotorBackward = 11;
+const int trig = 2;
+const int echo = 3;
+const int trigLS = 4;
+const int echoLS = 5;
+const int trigRS = 6;
+const int echoRS = 7;
+const int servo = 10;
+const int motor1 = 8;
+const int motor2 = 9;
+const int enable = 11;
+const int maxDist = 10;
+const int maxDistance = 10;
 
-// Ultrasonic Sensor Pins
-#define trigPinFront A0
-#define echoPinFront A1
-#define trigPinLeft A2
-#define echoPinLeft A3
-#define trigPinRight A4
-#define echoPinRight A5
+Servo myServo;
 
-#define maximum_distance 200
-boolean goesForward = false;
-int distanceFront = 100;
-int distanceLeft = 100;
-int distanceRight = 100;
-
-NewPing sonarFront(trigPinFront, echoPinFront, maximum_distance);
-NewPing sonarLeft(trigPinLeft, echoPinLeft, maximum_distance);
-NewPing sonarRight(trigPinRight, echoPinRight, maximum_distance);
+long distance;
+long duration;
 
 void setup() {
-    // Initialize motor driver pins
-    pinMode(RightMotorForward, OUTPUT);
-    pinMode(LeftMotorForward, OUTPUT);
-    pinMode(LeftMotorBackward, OUTPUT);
-    pinMode(RightMotorBackward, OUTPUT);
-
-    // Initialize sensor readings
-    delay(2000); // Wait for sensors to stabilize
-    distanceFront = readPingFront();
-    distanceLeft = readPingLeft();
-    distanceRight = readPingRight();
+  pinMode(trig, OUTPUT);
+  pinMode(echo, INPUT);
+  pinMode(trigLS, OUTPUT);
+  pinMode(echoLS, INPUT);
+  pinMode(trigRS, OUTPUT);
+  pinMode(echoRS, INPUT);
+  pinMode(motor1, OUTPUT);
+  pinMode(motor2, OUTPUT);
+  pinMode(enable, OUTPUT);
+  myServo.attach(servo);
+  Serial.begin(9600);
 }
 
 void loop() {
-    delay(50); // Small delay for stability
+  digitalWrite(trig, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trig, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trig, LOW);
+  duration = pulseIn(echo, HIGH);
+  distance = duration * 0.034 / 2;
 
-    // Update distances
-    distanceFront = readPingFront();
-    distanceLeft = readPingLeft();
-    distanceRight = readPingRight();
+  if (distance <= maxDist) {
+    digitalWrite(motor1, LOW);
+    digitalWrite(motor2, LOW);
+    analogWrite(enable, 0);
+  } else {
+    digitalWrite(motor1, HIGH);
+    digitalWrite(motor2, LOW);
+    analogWrite(enable, 150);
+  }
 
-    if (distanceFront <= 20) {
-        moveStop();
-        delay(300);
-        moveBackward();
-        delay(400);
-        moveStop();
-        delay(300);
+  Serial.print("Distance: ");
+  Serial.print(distance);
+  Serial.println(" cm");
 
-        if (distanceLeft > distanceRight) {
-            turnLeft();
-        } else {
-            turnRight();
-        }
-    } else if (distanceLeft <= 15) {
-        turnRight();
-    } else if (distanceRight <= 15) {
-        turnLeft();
-    } else {
-        moveForward(); 
-    }
-}
+  delay(200);
 
-int readPingFront() {
-    int cm = sonarFront.ping_cm();
-    return (cm == 0) ? maximum_distance : cm;
-}
+  digitalWrite(trigLS, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigLS, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigLS, LOW);
+  long durationLeft = pulseIn(echoLS, HIGH);
+  int distanceLeft = durationLeft * 0.034 / 2;
 
-int readPingLeft() {
-    int cm = sonarLeft.ping_cm();
-    return (cm == 0) ? maximum_distance : cm;
-}
+  digitalWrite(trigRS, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigRS, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigRS, LOW);
+  long durationRight = pulseIn(echoRS, HIGH);
+  int distanceRight = durationRight * 0.034 / 2;
 
-int readPingRight() {
-    int cm = sonarRight.ping_cm();
-    return (cm == 0) ? maximum_distance : cm;
-}
+  int steeringAngle = map(distanceLeft - distanceRight, -maxDistance, maxDistance, -90, 90);
+  steeringAngle = constrain(steeringAngle, -90, 90);
 
-void moveStop() {
-    digitalWrite(RightMotorForward, LOW);
-    digitalWrite(LeftMotorForward, LOW);
-    digitalWrite(RightMotorBackward, LOW);
-    digitalWrite(LeftMotorBackward, LOW);
-}
+  myServo.write(90 + steeringAngle);
 
-void moveForward() {
-    if (!goesForward) {
-        goesForward = true;
-        digitalWrite(LeftMotorForward, HIGH);
-        digitalWrite(RightMotorForward, HIGH);
-        digitalWrite(LeftMotorBackward, LOW);
-        digitalWrite(RightMotorBackward, LOW); 
-    }
-}
+  Serial.print("Left: ");
+  Serial.print(distanceLeft);
+  Serial.print(" cm, Right: ");
+  Serial.print(distanceRight);
+  Serial.println(" cm");
 
-void moveBackward() {
-    goesForward = false;
-    digitalWrite(LeftMotorBackward, HIGH);
-    digitalWrite(RightMotorBackward, HIGH);
-    digitalWrite(LeftMotorForward, LOW);
-    digitalWrite(RightMotorForward, LOW);
-}
-
-void turnRight() {
-    digitalWrite(LeftMotorForward, HIGH);
-    digitalWrite(RightMotorBackward, HIGH);
-    digitalWrite(LeftMotorBackward, LOW);
-    digitalWrite(RightMotorForward, LOW);
-    delay(300);
-    moveForward();
-}
-
-void turnLeft() {
-    digitalWrite(LeftMotorBackward, HIGH);
-    digitalWrite(RightMotorForward, HIGH);
-    digitalWrite(LeftMotorForward, LOW);
-    digitalWrite(RightMotorBackward, LOW);
-    delay(300);
-    moveForward();
+  delay(200);
 }
